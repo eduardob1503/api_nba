@@ -9,6 +9,8 @@ from flask import Flask, jsonify, request
 import os
 import psycopg2
 import auth
+from functools import wraps
+import jwt
 
 DB_CONFIG = {
     "host":"localhost",
@@ -21,8 +23,33 @@ DB_CONFIG = {
 app = Flask(__name__)
 auth.init_auth(app)
 
+def admin_required(func):
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        auth_header = request.headers.get("Authorization")
+        if not auth_header:
+            return jsonify({"erro":"sem header"}),401
+        auth_header_splited = auth_header.split(" ")
+        if len(auth_header_splited) != 2:
+            return jsonify({"erro":"header invalido"}),401
+        if auth_header_splited[0] != "Bearer":
+            return jsonify({"erro":"header invalido"}),401
+        try:
+            token = auth_header_splited[1]
+            payload = jwt.decode(token, auth.SECRET_KEY, algorithms=["HS256"])
+        except:
+            return jsonify({"erro":"token invalido"}),401
+        is_admin = payload["is_admin"]
+        if verificar_admin(is_admin) == False:
+            return jsonify({"erro":"acesso negado"}),403
+        return func(*args,**kwargs)
+    return wrapper
+def verificar_admin(is_admin):
+    if is_admin is not True:
+        return False
+    else:
+        return True
 
-   
 
 def conectar():
     conn = psycopg2.connect(**DB_CONFIG)
@@ -72,10 +99,12 @@ def obter_jogadores():
         #return jsonify({"erro": "Jogador não encontrado"}),404
 
 @app.route("/jogadores/<code>",methods=['POST'])
+@admin_required
 def adicionar_pontos(code):
     conn = conectar()
     cur = conn.cursor()
     pontos_jogador = request.get_json()
+    
     pontos = pontos_jogador.get("pontos")
     if not isinstance(pontos, list):
         return jsonify({"erro": "pontos invalidos"}),400
@@ -95,12 +124,14 @@ def adicionar_pontos(code):
     
     return jsonify(pontos_jogador),201
 @app.route('/jogadores',methods=['POST'])
+@admin_required
 def adicionar_jogador():
         conn = conectar()
         cur = conn.cursor()
         novo_jogador = request.get_json()    
         if not novo_jogador:
             return jsonify({"erro": "json vazio"}),400
+    
         nome = novo_jogador.get('nome')
         if not nome or not isinstance (nome,(str)):
             return jsonify({"erro": "sem nome"}),400
