@@ -3,7 +3,7 @@ import psycopg2
 import bcrypt
 from email_validator import validate_email, EmailNotValidError
 import jwt
-import datetime
+from datetime import datetime, timezone, timedelta
 import os
 from dotenv import load_dotenv
 from email_validator import validate_email, EmailNotValidError
@@ -36,13 +36,13 @@ def is_email(email: str) -> bool:
 def init_auth(app):
     @app.route('/cadastro',methods=["POST"])
     def criar_login():
-        conn = conectar()
-        cur = conn.cursor()
+        
         cadastro_user = request.get_json()
         if not cadastro_user:
-            cur.close()
-            conn.close()
             return jsonify({"erro":"json vazio"}),400
+        conn = conectar()
+        cur = conn.cursor()
+            
         email = cadastro_user.get("email")
         senha = cadastro_user.get("senha")
         nome = cadastro_user.get("nome")
@@ -60,11 +60,11 @@ def init_auth(app):
             cur.close()
             conn.close()
             return jsonify({"erro":"senha invalida"}),400
-        
         if not nome or not isinstance (nome,(str)):
             cur.close()
             conn.close()
             return jsonify({"erro": "nome invalido"}),400
+        
         senha_crypt = criptografar_senha(senha)
         cur.execute("INSERT INTO usuarios (nome,email,senha)VALUES(%s,%s,%s)",(nome,email,senha_crypt))
         conn.commit()
@@ -94,14 +94,17 @@ def init_auth(app):
             conn.close()
             return jsonify({"erro":"email ou senha invalidos"}),400
         senha_hash = resultado[3]
-        payload["id"] = resultado[0]
-        payload["email"] = resultado[2]
-        payload["is_admin"] = resultado[4]
+        
         if bcrypt.checkpw(senha_login.encode("utf-8"),senha_hash.encode("utf-8")):
+            payload["id"] = resultado[0]
+            payload["email"] = resultado[2]
+            payload["is_admin"] = resultado[4]
+            payload["iat"]= datetime.now(timezone.utc)
+            payload["exp"] = datetime.now(timezone.utc)+timedelta(hours=1)
             token = jwt.encode(payload, SECRET_KEY, algorithm="HS256")
             cur.close()
             conn.close()
-            return jsonify(token),200
+            return jsonify({"token":token}),200
         else:
             cur.close()
             conn.close()
