@@ -55,7 +55,7 @@ cd nba-stats-api
 ### 2. Instale as dependências
 
 ```bash
-pip install flask psycopg2-binary pyjwt bcrypt python-dotenv email-validator
+pip install -r requirements.txt
 ```
 
 ### 3. Configure o `.env`
@@ -95,6 +95,11 @@ CREATE TABLE ppg (
     id_jogador VARCHAR(20) REFERENCES jogadores(code_jogador),
     pontos NUMERIC
 );
+
+#Para acessar rotas administrativas, promova um usuário a admin via banco
+UPDATE usuarios
+SET is_admin = TRUE
+WHERE email = seu_email@email.com;
 ```
 
 ### 5. Suba a API
@@ -102,7 +107,6 @@ CREATE TABLE ppg (
 ```bash
 python app.py
 ```
-
 A API estará disponível em `http://localhost:5000`.
 
 ---
