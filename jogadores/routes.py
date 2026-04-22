@@ -1,13 +1,15 @@
-from flask import Flask, jsonify, request
-import auth
+from flask import Blueprint, jsonify, request
 from functools import wraps
+from database import conectar
+from middlewares.auth import admin_required, login_required
 import jwt
 from math import sqrt
+jogadores_bp = Blueprint("jogadores", __name__)
 
-@app.route('/jogadores',methods=['GET'])
+@jogadores_bp.route('/jogadores',methods=['GET'])
 @login_required
 def obter_jogadores():
-    conn = auth.conectar()
+    conn = conectar()
     cur = conn.cursor()
     jogadores = []
     cur.execute("""SELECT * FROM jogadores""")
@@ -21,10 +23,10 @@ def obter_jogadores():
     conn.close()
     return jsonify(jogadores)
 
-@app.route('/jogadores/<code>', methods=['GET'])
+@jogadores_bp.route('/jogadores/<code>', methods=['GET'])
 @login_required
 def obter_por_id(code):
-    conn = auth.conectar()
+    conn = conectar()
     cur = conn.cursor()
     if not code:
         cur.close()
@@ -69,10 +71,10 @@ def obter_por_id(code):
     return jsonify(dados_jogador),200
 
 
-@app.route("/jogadores/<code>",methods=['POST'])
+@jogadores_bp.route("/jogadores/<code>",methods=['POST'])
 @admin_required
 def adicionar_pontos(code):
-    conn = auth.conectar()
+    conn = conectar()
     cur = conn.cursor()
     pontos_jogador = request.get_json()
     
@@ -101,10 +103,10 @@ def adicionar_pontos(code):
     cur.close()
     conn.close()
     return jsonify(pontos_jogador),201
-@app.route('/jogadores',methods=['POST'])
+@jogadores_bp.route('/jogadores',methods=['POST'])
 @admin_required
 def adicionar_jogador():
-        conn = auth.conectar()
+        conn = conectar()
         cur = conn.cursor()
         novo_jogador = request.get_json()    
         if not novo_jogador:
@@ -143,10 +145,10 @@ def adicionar_jogador():
         conn.close()
         return jsonify(novo_jogador),201
 
-@app.route('/jogadores/<code>',methods=["DELETE"])
+@jogadores_bp.route('/jogadores/<code>',methods=["DELETE"])
 @admin_required
 def deletar_jogador(code):
-    conn = auth.conectar()
+    conn = conectar()
     cur = conn.cursor()
     if not code:
         cur.close()

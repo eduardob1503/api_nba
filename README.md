@@ -19,10 +19,19 @@ API RESTful construída com **Flask** e **PostgreSQL** para consulta e gerenciam
 
 ```
 nba-stats-api/
-├── app.py          # Rotas principais e decorators de autenticação
-├── auth.py         # Lógica de cadastro, login e conexão com o banco
-├── .env            # Variáveis de ambiente (não versionar)
-├── .gitignore
+├── app.py                  # só cria o app Flask e registra os blueprints
+├── config.py               # DB_CONFIG, SECRET_KEY, carrega .env
+├── database.py             # função conectar()
+├── auth/
+│   ├── __init__.py
+│   └── routes.py           # /login e /cadastro
+├── jogadores/
+│   ├── __init__.py
+│   └── routes.py           # todas as rotas de /jogadores
+├── middlewares/
+│   ├── __init__.py
+│   └── auth.py             # @login_required e @admin_required
+├── .env
 └── README.md
 ```
 

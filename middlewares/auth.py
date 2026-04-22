@@ -1,6 +1,7 @@
 from flask import jsonify, request
+from config import SECRET_KEY
 import jwt
-import wraps
+from functools import wraps
 def admin_required(func):
     @wraps(func)
     def wrapper(*args, **kwargs):
@@ -14,7 +15,7 @@ def admin_required(func):
             return jsonify({"erro":"header invalido"}),401
         try:
             token = auth_header_splited[1]
-            payload = jwt.decode(token, auth.SECRET_KEY, algorithms=["HS256"])
+            payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
         except jwt.ExpiredSignatureError:
             return jsonify({"erro":"token expirado"}),401
         except jwt.InvalidTokenError:
@@ -39,7 +40,7 @@ def login_required(func):
             return jsonify({"erro":"header invalido"}),401
         try:
             token = auth_header_splited[1]
-            jwt.decode(token, auth.SECRET_KEY, algorithms=["HS256"])
+            jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
         except jwt.ExpiredSignatureError:
             return jsonify({"erro":"token expirado"}),401
         except jwt.InvalidTokenError:
