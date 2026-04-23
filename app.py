@@ -5,9 +5,9 @@ import jwt
 from math import sqrt
 from auths.routes import auth_bp
 from jogadores.routes import jogadores_bp
-import config
+from config import DATABASE_URL
 
-DATABASE_URL = config.DATABASE_URL
+DATABASE_URL = DATABASE_URL
 
 app = Flask(__name__)
 app.register_blueprint(jogadores_bp)
