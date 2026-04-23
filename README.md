@@ -1,17 +1,22 @@
 # 🏀 NBA Stats API
 
-API RESTful construída com **Flask** e **PostgreSQL** para consulta e gerenciamento de estatísticas de jogadores da NBA, com autenticação JWT e controle de acesso por roles.
+API RESTful para consulta e gerenciamento de estatísticas de jogadores da NBA, com autenticação JWT, controle de acesso por roles e deploy em produção.
+
+🌐 **Demo ao vivo:** [https://nba-stats-api-kfwn.onrender.com](https://nba-stats-api-kfwn.onrender.com)
+> Serviço no plano gratuito do Render — pode levar ~30s na primeira requisição após inatividade.
 
 ---
 
 ## 🚀 Tecnologias
 
-- **Python 3** + **Flask** — framework web
-- **PostgreSQL** — banco de dados relacional
-- **psycopg2** — driver PostgreSQL para Python
-- **JWT (PyJWT)** — autenticação stateless
-- **bcrypt** — hash seguro de senhas
-- **python-dotenv** — gerenciamento de variáveis de ambiente
+| Tecnologia | Uso |
+|-----------|-----|
+| Python 3 + Flask | Framework web e roteamento |
+| PostgreSQL + psycopg2 | Banco de dados relacional |
+| PyJWT | Autenticação stateless com tokens |
+| bcrypt | Hash seguro de senhas |
+| gunicorn | Servidor WSGI para produção |
+| python-dotenv | Gerenciamento de variáveis de ambiente |
 
 ---
 
@@ -19,19 +24,21 @@ API RESTful construída com **Flask** e **PostgreSQL** para consulta e gerenciam
 
 ```
 nba-stats-api/
-├── app.py                  # só cria o app Flask e registra os blueprints
-├── config.py               # DB_CONFIG, SECRET_KEY, carrega .env
-├── database.py             # função conectar()
-├── auth/
+├── app.py                  # Inicialização do app e registro dos blueprints
+├── config.py               # DATABASE_URL e SECRET_KEY via variáveis de ambiente
+├── database.py             # Função conectar() com suporte a SSL em produção
+├── Procfile                # Comando de start para o Render (gunicorn)
+├── requirements.txt        # Dependências do projeto
+├── .env.example            # Modelo de variáveis de ambiente
+├── auths/
 │   ├── __init__.py
-│   └── routes.py           # /login e /cadastro
+│   └── routes.py           # POST /login  |  POST /cadastro
 ├── jogadores/
 │   ├── __init__.py
-│   └── routes.py           # todas as rotas de /jogadores
+│   └── routes.py           # CRUD /jogadores
 ├── middlewares/
 │   ├── __init__.py
-│   └── auth.py             # @login_required e @admin_required
-├── .env
+│   └── auth.py             # @login_required  |  @admin_required
 └── README.md
 ```
 
@@ -48,7 +55,7 @@ nba-stats-api/
 ### 1. Clone o repositório
 
 ```bash
-git clone https://github.com/seu-usuario/nba-stats-api.git
+git clone https://github.com/eduardob1503/nba-stats-api.git
 cd nba-stats-api
 ```
 
@@ -60,15 +67,21 @@ pip install -r requirements.txt
 
 ### 3. Configure o `.env`
 
-Crie um arquivo `.env` na raiz do projeto:
+Copie o modelo e preencha com suas credenciais:
+
+```bash
+cp .env.example .env
+```
 
 ```env
-host=localhost
-port=5432
-user=postgres
-password=sua_senha
-database=nba
+DATABASE_URL=postgresql://postgres:sua_senha@localhost:5432/nba
 SECRET_KEY=sua_chave_secreta_aqui
+ENV=development
+```
+
+Gere uma SECRET_KEY segura com:
+```bash
+python -c "import secrets; print(secrets.token_hex(32))"
 ```
 
 ### 4. Configure o banco de dados
@@ -95,11 +108,11 @@ CREATE TABLE ppg (
     id_jogador VARCHAR(20) REFERENCES jogadores(code_jogador),
     pontos NUMERIC
 );
+```
 
-#Para acessar rotas administrativas, promova um usuário a admin via banco
-UPDATE usuarios
-SET is_admin = TRUE
-WHERE email = 'seu_email@email.com';
+Para promover um usuário a admin:
+```sql
+UPDATE usuarios SET is_admin = TRUE WHERE email = 'seu@email.com';
 ```
 
 ### 5. Suba a API
@@ -107,24 +120,24 @@ WHERE email = 'seu_email@email.com';
 ```bash
 python app.py
 ```
-A API estará disponível em `http://localhost:5000`.
+
+Disponível em `http://localhost:5000`.
 
 ---
 
 ## 🔐 Autenticação
 
-A API usa **JWT Bearer Token**. Para acessar rotas protegidas, inclua o token no header:
+A API usa **JWT Bearer Token**. Inclua o token no header de todas as rotas protegidas:
 
 ```
 Authorization: Bearer <seu_token>
 ```
 
-Existem dois níveis de acesso:
-
-| Role | Permissões |
-|------|-----------|
-| Usuário logado | Consultar jogadores e estatísticas |
-| Admin | Criar, editar e deletar jogadores e pontuações |
+| Role | Rotas disponíveis |
+|------|------------------|
+| 🔓 Público | `POST /cadastro`, `POST /login` |
+| 🔒 Usuário logado | `GET /jogadores`, `GET /jogadores/:code` |
+| 👑 Admin | Todas as rotas + `POST /jogadores`, `POST /jogadores/:code`, `DELETE /jogadores/:code` |
 
 ---
 
@@ -135,64 +148,45 @@ Existem dois níveis de acesso:
 #### `POST /cadastro`
 Cria um novo usuário.
 
-**Body:**
 ```json
-{
-  "nome": "João Silva",
-  "email": "joao@email.com",
-  "senha": "minhasenha123"
-}
-```
+// Body
+{ "nome": "Eduardo Viana", "email": "eduardo@email.com", "senha": "minhasenha123" }
 
-**Resposta 200:**
-```json
+// Resposta 200
 "usuario criado com sucesso"
 ```
 
----
-
 #### `POST /login`
-Autentica o usuário e retorna um token JWT válido por 1 hora.
+Retorna um token JWT válido por **1 hora**.
 
-**Body:**
 ```json
-{
-  "email": "joao@email.com",
-  "senha": "minhasenha123"
-}
-```
+// Body
+{ "email": "eduardo@email.com", "senha": "minhasenha123" }
 
-**Resposta 200:**
-```json
-{
-  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
-}
+// Resposta 200
+{ "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." }
 ```
 
 ---
 
 ### Jogadores
 
-#### `GET /jogadores` 🔒 Login
+#### `GET /jogadores` — 🔒 Login
 Lista todos os jogadores cadastrados.
 
-**Resposta 200:**
 ```json
+// Resposta 200
 [
   { "id": "jamesle01", "nome": "LeBron James" },
   { "id": "curryst01", "nome": "Stephen Curry" }
 ]
 ```
 
----
+#### `GET /jogadores/<code>` — 🔒 Login
+Retorna estatísticas de um jogador. Se não houver pontos, retorna dados básicos do cadastro.
 
-#### `GET /jogadores/<code>` 🔒 Login
-Retorna as estatísticas de pontuação de um jogador.
-
-**Exemplo:** `GET /jogadores/jamesle01`
-
-**Resposta 200 (com pontos registrados):**
 ```json
+// Resposta 200 — com pontos registrados
 {
   "id": "jamesle01",
   "pontos": [28, 31, 19, 24],
@@ -200,94 +194,70 @@ Retorna as estatísticas de pontuação de um jogador.
   "media": 25.5,
   "jogos": 4
 }
+
+// Resposta 200 — sem pontos ainda
+{ "code": "jamesle01", "nome": "LeBron James" }
 ```
 
-**Resposta 200 (sem pontos ainda):**
-```json
-{
-  "code": "jamesle01",
-  "nome": "LeBron James"
-}
-```
-
----
-
-#### `POST /jogadores` 🔒 Admin
+#### `POST /jogadores` — 👑 Admin
 Cadastra um novo jogador. O `code` é gerado automaticamente a partir do nome.
 
-**Body:**
 ```json
-{
-  "nome": "LeBron James"
-}
+// Body
+{ "nome": "LeBron James" }
+
+// Resposta 201
+{ "nome": "LeBron James", "code": "jamesle01" }
 ```
 
-**Resposta 201:**
-```json
-{
-  "nome": "LeBron James",
-  "code": "jamesle01"
-}
-```
-
----
-
-#### `POST /jogadores/<code>` 🔒 Admin
+#### `POST /jogadores/<code>` — 👑 Admin
 Adiciona registros de pontuação para um jogador.
 
-**Exemplo:** `POST /jogadores/jamesle01`
-
-**Body:**
 ```json
-{
-  "pontos": [28, 31, 19]
-}
+// Body
+{ "pontos": [28, 31, 19] }
+
+// Resposta 201
+{ "pontos": [28, 31, 19] }
 ```
 
-**Resposta 201:**
+#### `DELETE /jogadores/<code>` — 👑 Admin
+Remove o jogador e todos os seus registros de pontuação.
+
 ```json
-{
-  "pontos": [28, 31, 19]
-}
-```
-
----
-
-#### `DELETE /jogadores/<code>` 🔒 Admin
-Remove um jogador e todos os seus registros de pontuação.
-
-**Exemplo:** `DELETE /jogadores/jamesle01`
-
-**Resposta 200:**
-```json
-{
-  "mensagem": "jogador deletado"
-}
+// Resposta 200
+{ "mensagem": "jogador deletado" }
 ```
 
 ---
 
 ## 🛡️ Segurança
 
-- Senhas armazenadas com **bcrypt** (hash + salt)
-- Tokens JWT com **expiração de 1 hora**
-- Credenciais do banco isoladas em **variáveis de ambiente**
-- Rotas protegidas por **decorators** reutilizáveis (`@login_required`, `@admin_required`)
-- Tratamento granular de erros JWT: token expirado vs. token inválido
+- Senhas com **bcrypt** (hash + salt automático)
+- Tokens JWT com **expiração de 1 hora** (`exp` + `iat` no payload)
+- Credenciais em **variáveis de ambiente** — nunca no código
+- Conexão com banco via **SSL em produção** (`sslmode=require`)
+- Decorators reutilizáveis `@login_required` e `@admin_required`
+- Erros JWT diferenciados: token expirado vs. token inválido vs. erro interno
 
 ---
 
-## 📊 Próximos passos
+## 📊 Roadmap
 
-- [ ] Context manager para gerenciamento automático de conexões
-- [ ] Rate limiting no `/login` contra brute force
-- [ ] Endpoints de tendência e consistência para análise de apostas
-- [ ] Integração com dados reais via `nba_api`
-- [ ] Documentação automática com Swagger (Flask-RESTX)
-- [ ] Docker Compose para deploy simplificado
+- [ ] Context manager para conexões automáticas com o banco
+- [ ] Rate limiting no `/login` com Flask-Limiter
+- [ ] Testes automatizados com pytest
+- [ ] Stats avançadas: `max`, `min`, desvio padrão por jogador
+- [ ] Endpoint `/jogadores/:code/tendencia` — média dos últimos 5/10/15 jogos
+- [ ] Integração com dados reais via `nba_api` (PyPI)
+- [ ] Documentação interativa com Swagger (Flask-RESTX)
+- [ ] Docker Compose para ambiente de desenvolvimento
 
 ---
 
 ## 👨‍💻 Autor
 
-Feito por **Eduardo Barcelos Viana** · [LinkedIn](https://linkedin.com/in/eduardo-viana1503) · [GitHub](https://github.com/eduardob1503)
+**Eduardo Barcelos Viana**
+
+[![LinkedIn](https://img.shields.io/badge/LinkedIn-eduardo--viana1503-blue?style=flat&logo=linkedin)](https://linkedin.com/in/eduardo-viana1503)
+[![GitHub](https://img.shields.io/badge/GitHub-eduardob1503-black?style=flat&logo=github)](https://github.com/eduardob1503)
