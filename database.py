@@ -1,5 +1,8 @@
 import psycopg2
-from config import DATABASE_URL
+import os
+from dotenv import load_dotenv
+load_dotenv()
 def conectar():
-    conn = psycopg2.connect(**DATABASE_URL)
+    DATABASE_URL = os.getenv("DATABASE_URL")
+    conn = psycopg2.connect(DATABASE_URL, sslmode='require')
     return conn
